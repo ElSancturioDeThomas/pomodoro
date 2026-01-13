@@ -10,4 +10,4 @@ npm run dev
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+Open [https://pomodoro.heal.enterprises](https://pomodoro.heal.enterprises) to view the app.
