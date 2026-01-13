@@ -38,10 +38,15 @@ const handleReset = () => {
 const unlockAudio = async () => {
   try {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Handle browser compatibility for AudioContext
+      const AudioContextClass = window.AudioContext || 
+        (window as typeof window & { webkitAudioContext: new () => AudioContext }).webkitAudioContext;
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass();
+      }
     }
     // Resume audio context if suspended (browser autoplay policy)
-    if (audioContextRef.current.state === 'suspended') {
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
       await audioContextRef.current.resume();
     }
     
@@ -70,9 +75,6 @@ const unlockAudio = async () => {
 // Function to play notification sound based on session type
 const playNotificationSound = (sessionType: 'workhard' | 'shortBreak' | 'longBreak') => {
   try {
-    // Stop the timer first to prevent state changes from interfering
-    setTimeCounting(false);
-    
     // Determine which audio to play
     const audio = sessionType === 'workhard' 
       ? workhardAudioRef.current 
@@ -81,16 +83,16 @@ const playNotificationSound = (sessionType: 'workhard' | 'shortBreak' | 'longBre
     if (audio) {
       // Reset audio to beginning and play
       audio.currentTime = 0;
-      audio.play().catch((err: any) => {
+      audio.play().catch((err: unknown) => {
         console.log('Audio play failed:', err);
-        if (err.name === 'NotAllowedError') {
+        if (err instanceof Error && err.name === 'NotAllowedError') {
           console.log('Audio blocked. Make sure you clicked Start/Stop button first to enable audio.');
         }
       });
     } else {
       console.log('Audio not loaded yet');
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.log('Error playing sound:', err);
   }
 }
@@ -110,28 +112,39 @@ useEffect(() => {
     const currentSession = sessionTypeRef.current;
     const currentCount = pomodoroCountRef.current;
     
+    // Stop the timer first
+    setTimeCounting(false);
+    
     // Play notification sound when timer completes (based on current session)
-    // This stops the timer and plays sound immediately
     playNotificationSound(currentSession);
     
     // Small delay before transitioning to next session to ensure sound plays
     setTimeout(() => {
       if (currentSession === 'workhard') {
         if (currentCount < 2) {
-          // Go to short break
+          // Go to short break and auto-start
           setSessionType('shortBreak');
           setTimeRemaining(5 * 60);
           setPomodoroCount(prev => prev + 1);
+          setTimeCounting(true); // Auto-start short break
         } else {
-          // Go to long break
+          // Go to long break and auto-start
           setSessionType('longBreak');
           setTimeRemaining(30 * 60);
           setPomodoroCount(0);
+          setTimeCounting(true); // Auto-start long break
         }
-      } else {
-        // Break finished, back to workhard
+      } else if (currentSession === 'shortBreak') {
+        // Short break finished, back to workhard and auto-start
         setSessionType('workhard');
         setTimeRemaining(25 * 60);
+        setTimeCounting(true); // Auto-start workhard
+      } else {
+        // Long break finished, reset (don't auto-start)
+        setSessionType('workhard');
+        setTimeRemaining(25 * 60);
+        setPomodoroCount(0);
+        // Don't auto-start - user needs to click Start
       }
     }, 100); // Small delay to ensure sound starts playing
   }
