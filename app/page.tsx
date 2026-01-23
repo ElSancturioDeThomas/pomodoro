@@ -57,7 +57,7 @@ const unlockAudio = async () => {
       workhardAudioRef.current.preload = 'auto';
     }
     if (!breakAudioRef.current) {
-      breakAudioRef.current = new Audio('/breakCompleted.mp3');
+      breakAudioRef.current = new Audio('/breakOver.mp3');
       breakAudioRef.current.volume = 0.7;
       breakAudioRef.current.preload = 'auto';
     }
